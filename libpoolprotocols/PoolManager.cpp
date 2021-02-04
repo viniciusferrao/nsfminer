@@ -375,11 +375,12 @@ void PoolManager::rotateConnect()
     }
     else if (m_connectionAttempt >= m_Settings.connectionMaxRetries)
     {
-        // If this is the only connection we can't rotate
-        // forever
+        // If this is the only connection sleep for 60 seconds and try again
         if (m_Settings.connections.size() == 1)
         {
-            m_Settings.connections.erase(m_Settings.connections.begin() + m_activeConnectionIdx);
+            cnote << "Sleeping for 60 seconds since the pool appears to be unreachable and there's no backup pools defined";
+            this_thread::sleep_until(chrono::system_clock::now() + chrono::seconds(60));
+            m_connectionAttempt = 0;
         }
         // Rotate connections if above max attempts threshold
         else
