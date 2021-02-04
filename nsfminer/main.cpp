@@ -456,6 +456,12 @@ public:
 
                 "Delay in seconds before reconnection retry")
 
+            ("sleep-time", value<unsigned>()->default_value(60),
+
+                "Defines the sleep time, in seconds, to wait before "
+                "trying to reconnect to the existing pool when there "
+                "is no failover pools defined.")
+
             ("work-timeout", value<unsigned>()->default_value(180),
 
                 "If no new work received from pool after this "
@@ -780,6 +786,7 @@ public:
         m_PoolSettings.getWorkPollInterval = vm["farm-recheck"].as<unsigned>();
         m_PoolSettings.connectionMaxRetries = vm["farm-retries"].as<unsigned>();
         m_PoolSettings.delayBeforeRetry = vm["retry-delay"].as<unsigned>();
+        m_PoolSettings.sleepTimeBeforeReconnect = vm["sleep-time"].as<unsigned>();
         m_PoolSettings.noWorkTimeout = vm["work-timeout"].as<unsigned>();
         m_PoolSettings.noResponseTimeout = vm["response-timeout"].as<unsigned>();
         m_PoolSettings.reportHashrate = vm.count("report-hashrate");
