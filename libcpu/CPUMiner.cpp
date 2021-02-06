@@ -8,6 +8,18 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <mach/mach.h>
+#include <mach/error.h>
+#include <mach/thread_act.h>
+#include <mach/thread_policy.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sched.h>
+#include <unistd.h>
+#endif
+
 #include <libeth/Farm.h>
 #include <ethash/ethash.hpp>
 
@@ -24,6 +36,8 @@
 /* Sanity check for defined OS */
 #if defined(__linux__)
 /* linux */
+#elif defined(__APPLE__)
+/* macOS */
 #elif defined(_WIN32)
 /* windows */
 #else
@@ -60,6 +74,23 @@ static size_t getTotalPhysAvailableMemory()
     }
 
     return (size_t)pages * (size_t)page_size;
+#elif defined(__APPLE__)
+    mach_port_t host_port = mach_host_self();
+    if (host_port == MACH_PORT_NULL)
+        return 0;
+
+    vm_size_t page_size = 0;
+    host_page_size(host_port, &page_size);
+
+    vm_statistics_data_t vmstat;
+    mach_msg_type_number_t count = HOST_VM_INFO_COUNT;
+    kern_return_t kernReturn = host_statistics(host_port, HOST_VM_INFO, (host_info_t)&vmstat, &count);
+    if (kernReturn != KERN_SUCCESS)
+        return 0;
+
+    [[maybe_unused]] size_t used_mem = (vmstat.active_count + vmstat.inactive_count + vmstat.wire_count) * page_size;
+    size_t free_mem = vmstat.free_count * page_size;
+    return free_mem;
 #else
     MEMORYSTATUSEX memInfo;
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
@@ -87,6 +118,20 @@ unsigned CPUMiner::getNumDevices()
         return 0;
     }
     return cpus_available;
+#elif defined(__APPLE__)
+    unsigned cpus_available;
+    size_t length = sizeof(cpus_available);
+    int name[] = {
+            CTL_HW,
+            HW_NCPU
+    };
+    int retvalue = sysctl(name, sizeof(name) / sizeof(int), &cpus_available, &length, 0, 0);
+
+    if (retvalue <= 0)
+        /* Assume one CPU */
+        return 1;
+    else
+        return cpus_available;
 #else
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
@@ -133,6 +178,8 @@ bool CPUMiner::initDevice()
         cwarn << "cp-" << m_index << "could not bind thread to cpu" << m_deviceDescriptor.cpCpuNumer
               << "\n";
     }
+#elif defined(__APPLE__)
+    cwarn << "Thread affinity is not yet supported on macOS";
 #else
     DWORD_PTR dwThreadAffinityMask = 1i64 << m_deviceDescriptor.cpCpuNumer;
     DWORD_PTR previous_mask;

@@ -322,7 +322,7 @@ public:
 
 protected:
     virtual bool initDevice() = 0;
-    virtual bool initEpoch() = 0;
+    virtual void initEpoch() = 0;
 
     WorkPackage work() const;
     void ReportSolution(const h256& header, uint64_t nonce);
